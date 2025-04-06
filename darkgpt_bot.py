@@ -6,7 +6,6 @@ import time
 from threading import Thread
 import requests
 from datetime import datetime, timezone
-from flask import Flask, request
 
 # --- CONFIG ---
 TELEGRAM_TOKEN = "7795830648:AAFIUU0SG25DqYP23JCnLZGIbbddNCWMJnw"
@@ -19,7 +18,6 @@ PARRAINAGE_FILE = "darkgpt_parrainages.json"
 NOWPAYMENTS_API_KEY = "D2ZNSV1-71542M0-K6STZ24-S92PPE1"
 NOWPAYMENTS_IPN_SECRET = "ivz9lIews8G4eeccD/G1VG9ZlH8Duiu4"
 NOWPAYMENTS_WEBHOOK = "https://travisio.pythonanywhere.com/nowpayments"
-WEBHOOK_URL = os.getenv("WEBHOOK_URL", "https://darkgpt-site.onrender.com")
 
 OFFRE_LANCEMENT_ACTIVE = True
 PRIX_PREMIUM = 25
@@ -77,6 +75,27 @@ def ask_openrouter(prompt):
     except Exception as e:
         return f"❌ DarkGPT n’a pas compris la réponse : {e}"
 
+# --- NowPayments ---
+def generate_payment_link(user_id):
+    try:
+        payload = {
+            "price_amount": PRIX_PREMIUM,
+            "price_currency": "EUR",
+            "pay_currency": "USDT",
+            "order_id": user_id,
+            "order_description": "Abonnement DarkGPT Premium",
+            "ipn_callback_url": NOWPAYMENTS_WEBHOOK
+        }
+        headers = {
+            "x-api-key": NOWPAYMENTS_API_KEY,
+            "Content-Type": "application/json"
+        }
+        res = requests.post("https://api.nowpayments.io/v1/invoice", json=payload, headers=headers)
+        data = res.json()
+        return data.get("invoice_url", "Erreur de génération de lien")
+    except Exception as e:
+        return f"Erreur API : {e}"
+
 # --- MENUS ---
 def menu_principal(user_id):
     markup = types.InlineKeyboardMarkup()
@@ -90,7 +109,7 @@ def menu_principal(user_id):
 # --- COMMANDES ---
 @bot.message_handler(commands=['start'])
 def welcome(message):
-    print("✅ /start reçu :", message)
+    print("✅ /start reçu : ", message)
     user_id = str(message.from_user.id)
     args = message.text.split()
     parrain_id = args[1] if len(args) > 1 else None
@@ -120,19 +139,115 @@ def welcome(message):
         "💸 Premium illimité : 25€/mois\n"
         "🎁 Parrainage : +5 utilisations par filleul\n\n"
         "👇 Clique ci-dessous et commence à explorer *les limites*...",
-        reply_markup=menu_principal(user_id)
+        reply_markup=menu_principal(user_id),
+        parse_mode="Markdown"
     )
 
-# --- FLASK + WEBHOOK ---
+# --- GPT CHAT ---
+@bot.message_handler(func=lambda m: True)
+def handle_chat(message):
+    user_id = str(message.from_user.id)
+    today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    user = user_credits.setdefault(user_id, {
+        "premium": False,
+        "used_tokens": 0,
+        "daily_uses": 0,
+        "last_date": today,
+        "last_reminder": None
+    })
+
+    if user.get("last_date") != today:
+        user["daily_uses"] = 0
+        user["last_date"] = today
+
+    if not user.get("premium"):
+        if user["daily_uses"] >= REQUETES_MAX_PAR_JOUR:
+            bot.send_message(message.chat.id, "❌ Tu as atteint tes 5 utilisations gratuites aujourd'hui. Passe à l’illimité pour continuer.")
+            return
+
+        user["daily_uses"] += 1
+    else:
+        if user["used_tokens"] > MAX_PREMIUM_TOKENS:
+            bot.send_message(message.chat.id, "❌ Limite invisible atteinte temporairement. Contacte le support si besoin.")
+            return
+
+    save_json(CREDITS_FILE, user_credits)
+    bot.send_chat_action(message.chat.id, 'typing')
+
+    prompt = message.text.strip()
+    if not prompt:
+        return
+
+    bot.send_message(message.chat.id, "DarkGPT réfléchit...")
+    reply = ask_openrouter(prompt)
+
+    if user.get("premium"):
+        user["used_tokens"] += 800
+
+    save_json(CREDITS_FILE, user_credits)
+    bot.send_message(message.chat.id, reply)
+
+# --- CALLBACKS ---
+@bot.callback_query_handler(func=lambda call: True)
+def handle_callbacks(call):
+    user_id = str(call.from_user.id)
+    try:
+        bot.answer_callback_query(call.id)
+    except:
+        pass
+
+    if call.data == "acheter":
+        # Générer une facture via NowPayments
+        try:
+            payload = {
+                "price_amount": 25,
+                "price_currency": "eur",
+                "order_id": f"user_{user_id}_{int(time.time())}",
+                "order_description": "Abonnement Premium DarkGPT",
+                "ipn_callback_url": "https://travisio.pythonanywhere.com/nowpayments",
+                "success_url": f"https://t.me/{BOT_USERNAME}",
+                "cancel_url": f"https://t.me/{BOT_USERNAME}"
+            }
+            headers = {
+                "x-api-key": "D2ZNSV1-71542M0-K6STZ24-S92PPE1",
+                "Content-Type": "application/json"
+            }
+            r = requests.post("https://api.nowpayments.io/v1/invoice", json=payload, headers=headers)
+            result = r.json()
+            pay_url = result.get("invoice_url", "https://nowpayments.io")  # fallback
+        except Exception as e:
+            bot.send_message(call.message.chat.id, f"❌ Erreur lors de la génération du lien de paiement : {e}")
+            return
+
+                # Message engageant avec bouton de paiement
+        markup = types.InlineKeyboardMarkup()
+        markup.add(types.InlineKeyboardButton("👉 Payer maintenant", url=pay_url))
+
+        bot.send_message(
+        call.message.chat.id,
+        "💸 *Abonnement Premium — Accès illimité à DarkGPT*\n\n"
+        "Débloque l'IA sans filtre. Zéro limite. Zéro censure.\n\n"
+        "🔓 Pour seulement *25€/mois*, via crypto.\n"
+        "👉 _Payer maintenant via le bouton ci-dessous_\n\n"
+        "📬 Contacte [@TravisBo_t](https://t.me/TravisBo_t) si besoin.",
+        parse_mode="Markdown",
+        reply_markup=markup
+        )
+
+# --- FLASK + WEBHOOK TELEGRAM ---
+from flask import Flask, request
+
+WEBHOOK_URL = os.getenv("WEBHOOK_URL", "https://darkgpt-site.onrender.com")  # Ton URL Render
+
 app = Flask(__name__)
 
 @app.route(f"/{TELEGRAM_TOKEN}", methods=["POST"])
 def receive_update():
     print("✅ Requête reçue sur le webhook")
     json_str = request.get_data().decode("UTF-8")
-    print("🔍 Contenu brut:", json_str)
+    print("🔍 Contenu brut :", json_str)
     update = telebot.types.Update.de_json(json_str)
-    print("📩 Update parsé:", update)
+    print("📩 Update parsé :", update)
     bot.process_new_updates([update])
     return "OK", 200
 
@@ -141,4 +256,5 @@ def set_webhook():
     success = bot.set_webhook(url=f"{WEBHOOK_URL}/{TELEGRAM_TOKEN}")
     return f"✅ Webhook {'OK' if success else 'FAIL'}", 200
 
+# Pour Render (nécessaire pour gunicorn)
 app = app
