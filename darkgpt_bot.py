@@ -288,7 +288,7 @@ WEBHOOK_URL = os.getenv("WEBHOOK_URL", "https://darkgpt-site.onrender.com")
 bot.remove_webhook()
 bot.set_webhook(url=f"{WEBHOOK_URL}/{TELEGRAM_TOKEN}")
 
-# ✅ Cette ligne doit être tout en haut, à l'extérieur !
+# --- FLASK + WEBHOOK TELEGRAM ---
 app = Flask(__name__)
 
 @app.route(f"/{TELEGRAM_TOKEN}", methods=["POST"])
@@ -298,7 +298,9 @@ def receive_update():
     bot.process_new_updates([update])
     return "OK", 200
 
-# ✅ Ça tu peux le laisser si tu veux tester localement
-if __name__ == "__main__":
-    print("✅ Serveur Flask lancé pour Webhook Telegram")
-    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
+# Configuration du webhook Telegram
+bot.remove_webhook()
+bot.set_webhook(url=f"{WEBHOOK_URL}/{TELEGRAM_TOKEN}")
+
+# Pour Render
+app = app
