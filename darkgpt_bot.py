@@ -283,7 +283,7 @@ def handle_callbacks(call):
 # --- FLASK + WEBHOOK TELEGRAM ---
 from flask import Flask, request
 
-WEBHOOK_URL = os.getenv("WEBHOOK_URL", "https://darkgpt-site.onrender.com")  # Ton URL Render
+WEBHOOK_URL = os.getenv("WEBHOOK_URL", "https://darkgpt-site.onrender.com")
 
 app = Flask(__name__)
 
@@ -294,10 +294,11 @@ def receive_update():
     bot.process_new_updates([update])
     return "OK", 200
 
+# ✅ Route manuelle pour activer le webhook une seule fois
 @app.route("/setwebhook")
 def set_webhook():
     success = bot.set_webhook(url=f"{WEBHOOK_URL}/{TELEGRAM_TOKEN}")
     return f"✅ Webhook {'OK' if success else 'FAIL'}", 200
 
-# Pour Render (nécessaire pour gunicorn)
+# Pour Render (obligatoire)
 app = app
