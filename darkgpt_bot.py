@@ -292,9 +292,9 @@ app = Flask(__name__)
 def receive_update():
     print("✅ Requête reçue sur le webhook")
     json_str = request.get_data().decode("UTF-8")
-    print("🔍 Contenu brut :", json_str)  # <== Ajoute ça !
+    print("🔍 Contenu brut :", json_str)  # 🔥 pour voir le JSON envoyé par Telegram
     update = telebot.types.Update.de_json(json_str)
-    print("📩 Update parsé :", update)
+    print("📩 Update parsé :", update)    # 🔥 pour voir l'objet Update
     bot.process_new_updates([update])
     return "OK", 200
 
