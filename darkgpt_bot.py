@@ -290,11 +290,14 @@ app = Flask(__name__)
 
 @app.route(f"/{TELEGRAM_TOKEN}", methods=["POST"])
 def receive_update():
-    print("✅ Requête reçue sur le webhook")  # <-- Ajoute ça
+    print("✅ Requête reçue sur le webhook")
     json_str = request.get_data().decode("UTF-8")
+    print("🔍 Contenu brut :", json_str)  # <== Ajoute ça !
     update = telebot.types.Update.de_json(json_str)
+    print("📩 Update parsé :", update)
     bot.process_new_updates([update])
     return "OK", 200
+
 
 # ✅ Route manuelle pour activer le webhook une seule fois
 @app.route("/setwebhook")
