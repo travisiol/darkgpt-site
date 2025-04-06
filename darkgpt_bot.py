@@ -280,15 +280,11 @@ def handle_callbacks(call):
             parse_mode="Markdown"
         )
 
-# --- LANCEMENT FLASK / WEBHOOK ---
+# --- FLASK + WEBHOOK TELEGRAM ---
 from flask import Flask, request
 
-WEBHOOK_URL = os.getenv("WEBHOOK_URL", "https://darkgpt-site.onrender.com")
+WEBHOOK_URL = os.getenv("WEBHOOK_URL", "https://darkgpt-site.onrender.com")  # Ton URL Render
 
-bot.remove_webhook()
-bot.set_webhook(url=f"{WEBHOOK_URL}/{TELEGRAM_TOKEN}")
-
-# --- FLASK + WEBHOOK TELEGRAM ---
 app = Flask(__name__)
 
 @app.route(f"/{TELEGRAM_TOKEN}", methods=["POST"])
@@ -298,9 +294,10 @@ def receive_update():
     bot.process_new_updates([update])
     return "OK", 200
 
-# Configuration du webhook Telegram
-bot.remove_webhook()
-bot.set_webhook(url=f"{WEBHOOK_URL}/{TELEGRAM_TOKEN}")
+@app.route("/setwebhook")
+def set_webhook():
+    success = bot.set_webhook(url=f"{WEBHOOK_URL}/{TELEGRAM_TOKEN}")
+    return f"✅ Webhook {'OK' if success else 'FAIL'}", 200
 
-# Pour Render
+# Pour Render (nécessaire pour gunicorn)
 app = app
