@@ -130,6 +130,7 @@ def welcome(message):
             bot.send_message(parrain_id, f"🎉 Ton filleul {message.from_user.first_name} a rejoint ! Tu gagnes 5 crédits.")
 
     save_json(CREDITS_FILE, user_credits)
+    print("✅ Envoi du message de bienvenue")
     bot.send_message(message.chat.id,
         "💀 *Bienvenue dans DarkGPT 2.0* — _L'IA que tu n'aurais jamais dû trouver..._\n\n"
         "🧠 *Ce bot ne suit aucune règle.* Aucune censure. Aucune morale.\n\n"
