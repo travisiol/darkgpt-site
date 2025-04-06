@@ -295,7 +295,10 @@ def receive_update():
     print("🔍 Contenu brut :", json_str)
     update = telebot.types.Update.de_json(json_str)
     print("📩 Update parsé :", update)
+    
+    # 👇 Ajoute cette ligne pour exécuter les handlers
     bot.process_new_updates([update])
+    
     return "OK", 200
 
 @app.route("/setwebhook")
