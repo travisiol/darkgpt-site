@@ -243,14 +243,14 @@ def handle_callbacks(call):
         markup.add(types.InlineKeyboardButton("👉 Payer maintenant", url=pay_url))
 
         bot.send_message(
-            call.message.chat.id,
-            "💸 *Abonnement Premium — Accès illimité à DarkGPT*\n\n"
-            "Débloque l'IA sans filtre. Zéro limite. Zéro censure.\n\n"
-            "🔓 Pour seulement *25€/mois*, via crypto.\n"
-            "👉 _Payer maintenant via le bouton ci-dessous_\n\n"
-            "📬 Contacte @admin si besoin.",
-            parse_mode="Markdown",
-            reply_markup=markup
+        call.message.chat.id,
+        "💸 *Abonnement Premium — Accès illimité à DarkGPT*\n\n"
+        "Débloque l'IA sans filtre. Zéro limite. Zéro censure.\n\n"
+        "🔓 Pour seulement *25€/mois*, via crypto.\n"
+        "👉 _Payer maintenant via le bouton ci-dessous_\n\n"
+        "📬 Contacte [@TravisBo_t](https://t.me/TravisBo_t) si besoin.",
+        parse_mode="Markdown",
+        reply_markup=markup
         )
 
         # Alerte admin
@@ -280,9 +280,25 @@ def handle_callbacks(call):
             parse_mode="Markdown"
         )
 
-# --- LANCEMENT ---
-try:
-    Thread(target=lambda: bot.polling(none_stop=True)).start()
-    print("✅ DarkGPT est en marche.")
-except Exception as e:
-    print("❌ DarkGPT ne fonctionne pas :", e)
+# --- LANCEMENT FLASK / WEBHOOK ---
+from flask import Flask, request
+
+WEBHOOK_URL = os.getenv("WEBHOOK_URL", "https://darkgpt-site.onrender.com")
+
+bot.remove_webhook()
+bot.set_webhook(url=f"{WEBHOOK_URL}/{TELEGRAM_TOKEN}")
+
+# ✅ Cette ligne doit être tout en haut, à l'extérieur !
+app = Flask(__name__)
+
+@app.route(f"/{TELEGRAM_TOKEN}", methods=["POST"])
+def receive_update():
+    json_str = request.get_data().decode("UTF-8")
+    update = telebot.types.Update.de_json(json_str)
+    bot.process_new_updates([update])
+    return "OK", 200
+
+# ✅ Ça tu peux le laisser si tu veux tester localement
+if __name__ == "__main__":
+    print("✅ Serveur Flask lancé pour Webhook Telegram")
+    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
