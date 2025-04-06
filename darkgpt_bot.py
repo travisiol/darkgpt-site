@@ -25,7 +25,7 @@ CREDITS_GRATUITS = 5
 REQUETES_MAX_PAR_JOUR = 5
 MAX_PREMIUM_TOKENS = 500000
 
-bot = telebot.TeleBot(TELEGRAM_TOKEN)
+bot = telebot.TeleBot(TELEGRAM_TOKEN, parse_mode="Markdown")
 user_credits = {}
 parrainages = {}
 
@@ -109,6 +109,7 @@ def menu_principal(user_id):
 # --- COMMANDES ---
 @bot.message_handler(commands=['start'])
 def welcome(message):
+    print("✅ /start reçu : ", message)
     user_id = str(message.from_user.id)
     args = message.text.split()
     parrain_id = args[1] if len(args) > 1 else None
@@ -289,6 +290,7 @@ app = Flask(__name__)
 
 @app.route(f"/{TELEGRAM_TOKEN}", methods=["POST"])
 def receive_update():
+    print("✅ Requête reçue sur le webhook")  # <-- Ajoute ça
     json_str = request.get_data().decode("UTF-8")
     update = telebot.types.Update.de_json(json_str)
     bot.process_new_updates([update])
