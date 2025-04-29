@@ -1,0 +1,17 @@
+# Ignorer les fichiers critiques pour les crédits utilisateurs
+darkgpt_credits.json
+darkgpt_parrainages.json
+
+# Fichiers de log
+logs.txt
+
+# Fichiers secrets (clé API etc.)
+*.env
+
+# Python files / cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+env/
+venv/
